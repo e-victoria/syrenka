@@ -5,7 +5,7 @@ Root `AGENTS.md` applies. These add to it.
 ## Honesty
 
 - **Never present a stale reading as current.** Measurement time, station distance and source accompany every value that leaves this layer.
-- **GIOŚ data is unverified and subject to later revision** — the app says so in the UI. This is why readings upsert on conflict rather than duplicating.
+- **Sources revise their own data.** OSM changes under you; GIOŚ readings are explicitly unverified and subject to later revision. Upsert on conflict rather than duplicating, and say so in the UI where a user could be misled.
 - **Nulls are data.** A missing measurement is a real gap, stored as `NULL`, never dropped and never interpolated at ingest.
 - **Estimates are labelled** — spatial interpolation, derived scores, sparse-price extrapolation — never silently substituted for a measurement.
 - **Derived indices are this project's model, never an official statistic.** Weights published and user-adjustable.
@@ -23,7 +23,7 @@ Root `AGENTS.md` applies. These add to it.
 
 ## Attribution
 
-A legal requirement, and it belongs in the app, not only in docs. GIOŚ: CC BY 4.0, source indicated clearly and visibly. OSM: ODbL. IMGW/Open-Meteo, Warsaw open data, GUS BDL: per provider terms.
+A legal requirement, and it belongs in the app, not only in docs. OSM: ODbL, attribution required — this one binds from V1. Warsaw open data: per portal terms. IMGW/Open-Meteo, GUS BDL: per provider terms. GIOŚ: CC BY 4.0, source indicated clearly and visibly.
 
 ## Conventions
 

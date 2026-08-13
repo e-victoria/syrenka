@@ -13,7 +13,7 @@ Every client request enters here. The Python service is internal and never route
 
 ## Response contracts
 
-**No endpoint returns a bare measurement.** Any environmental or price value is returned with its observation time, its source, and — for readings — the station identifier and distance from the requested point. A response shaped `{ "pm25": 18 }` is wrong.
+**No endpoint returns a bare value.** Anything derived from an external source carries its provenance: for a place, the source and when the record was last seen; for a reading, the observation time, the source, the station identifier and its distance from the requested point. A response shaped `{ "pm25": 18 }` is wrong, and so is a place with no provenance.
 
 Staleness is decided here, not in the client. If a reading is older than the threshold for its parameter, the response says so explicitly rather than leaving the client to compare timestamps.
 
@@ -22,6 +22,8 @@ Derived scores are returned with their weights, or with a reference to the publi
 ## Location
 
 Anything with a place references `area_id`. Never accept or return a district name as an identifier. Endpoints must work identically for a Warsaw district and a metro gmina — if a query only makes sense for Warsaw, the design is wrong.
+
+**Distances are labelled by kind.** Straight-line until real routing exists, walking or driving after. A client must never have to guess which one it received.
 
 ## Language
 

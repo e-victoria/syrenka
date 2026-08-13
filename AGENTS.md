@@ -1,11 +1,13 @@
 # AGENTS.md
 
-Syrenka — a practical, trilingual (EN/RU/PL) daily-life companion for Warsaw and its metro area. Answers _what do I do right now_: where to buy a thing, where to eat, how prices compare, where to take the kids, what the air is like. Not a dashboard of open data.
+Syrenka — a practical, trilingual (EN/RU/PL) companion for exploring Warsaw and its metro area. Answers _what's around me_ and _what should we do today_: where to take the kids this afternoon, which park, what's growing on that street, how the city is changing. Not a dashboard of open data — it is judged on whether it helps someone today.
+
+Built in versions, each shipping something usable. Exploration and family activities come first — map, places and trees, then weather-aware suggestions, then routes. Statistics, prices and personalization come later; natural-language interaction last. Detailed feature and version plans are kept locally, outside this repository.
 
 ## Invariants — breaking these is a rewrite, not a refactor
 
 1. **Location is a hierarchy.** One TERYT-keyed `areas` table; Warsaw districts and metro gminas are the same kind of row. Everything references `area_id`, never a name string. "District" never means Warsaw-only.
-2. **Honesty fields are schema.** Every reading carries `measured_at`, `source`, `station_id`. The API never returns a bare number. Staleness thresholds live server-side.
+2. **Honesty fields are schema.** Every value carries when it was observed, its `source`, and the identifier of whatever produced it — station, sensor, or upstream record. The API never returns a bare number, and never a bare place. Staleness thresholds live server-side.
 3. **The Python boundary holds.** Python: ingestion, transformation, computation — no public routes, ever. Nest: everything user-facing, and all user-generated writes. Nest never proxies a raw Python response.
 4. **Raw data is kept.** Every external fetch is stored verbatim before normalization.
 5. **Migrations only.** No hand-edited schema, ever, including locally.
@@ -16,12 +18,12 @@ If a task seems to require breaking one, stop and say so.
 ## Stack
 
 ```
-Angular PWA → Nest.js API → PostgreSQL + PostGIS + TimescaleDB
-                   │            Redis
+Angular PWA → Nest.js API → PostgreSQL + PostGIS
+                   │            (+ TimescaleDB, Redis — when needed)
                    └─internal─► Python (FastAPI, internal only) + batch jobs
 ```
 
-Timescale is an extension on the _same_ Postgres as PostGIS — deliberately, so time-series can join geometry in one statement. Angular Material, ngx-translate, Leaflet/MapLibre. Python: pandas, numpy, plain psycopg, no ORM. AWS: Lambda, EventBridge, ECS Fargate, S3, SQS/SNS, Cognito.
+PostGIS is there from the first migration — V1's "what's near me" is a spatial query. Timescale is an extension on the _same_ Postgres, deliberately, so time-series can join geometry in one statement; it arrives with the first real time series. Redis arrives when a query is slow. Angular Material, ngx-translate, Leaflet/MapLibre. Python: pandas, numpy, plain psycopg, no ORM. AWS: Lambda, EventBridge, ECS Fargate, S3, SQS/SNS, Cognito.
 
 Don't add a datastore, framework, queue or hosted service without agreement.
 
@@ -34,6 +36,7 @@ apps/web/            Angular
 
 ## How to work
 
+- **Work one version at a time.** The current version's scope, migrations, endpoints and exit criteria are agreed before work starts, not discovered during it. What comes after it is a direction, not a specification.
 - **Build vertically.** Every task ends in something visible — a screen, an endpoint with real data, a job writing real rows. If it doesn't, it's too big; split it.
 - **No speculative infrastructure.** Redis when a query is slow. Auth when there's user data. A design system when there's a third screen. The six invariants are the only things built ahead of need.
 - **Keep it deployed.** Once there's a screen, it stays reachable from a phone.

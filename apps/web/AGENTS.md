@@ -17,9 +17,11 @@ Root `AGENTS.md` applies. These add to it.
 
 ## Displaying data
 
-Every environmental or price value renders with its measurement time, source, and where relevant its station distance. **There is no component that takes a bare number.** If the server marks a value stale, that must be visible, not inferred.
+Every value from an external source renders with its provenance — measurement time, source and station distance for a reading; source and last-seen date for a place. **There is no component that takes a bare number.** If the server marks a value stale, that must be visible, not inferred.
 
-Estimates and derived scores are labelled as such in words, not only by styling.
+Estimates and derived scores are labelled as such in words, not only by styling. A score shows its factors on request — an unexplainable score doesn't ship.
+
+Source attribution is visible in the app itself — OSM's ODbL and Warsaw open data's terms are legal obligations, not an about-page courtesy.
 
 ## Errors
 
