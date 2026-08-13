@@ -1,59 +1,73 @@
 # syrenka-ingest
 
-Data ingestion, normalization and analysis. Python owns everything on this side of the boundary: it has no public routes, and the frontend never talks to it.
-
-Currently: GIOŚ air quality. Later: weather, OSM places, tree crowns, prices, scoring.
+Data ingestion, normalization and analysis. Python owns everything on this side of the boundary: it has no public routes, and the frontend never talks to it. pandas and numpy throughout, plain psycopg, no ORM.
 
 ---
 
-## Install
+## Status
+
+**Not implemented.** This directory contains conventions only. Nothing here runs yet.
+
+---
+
+## Planned first
+
+Three CLI subcommands, each runnable by hand long before anything is scheduled:
 
 ```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -e .            # add [dev] for pytest and ruff
-export DATABASE_URL=postgresql://syrenka:syrenka@localhost:5432/syrenka
+python -m syrenka_ingest areas     # TERYT-keyed boundaries, Warsaw districts + metro gminas
+python -m syrenka_ingest places    # OSM via Overpass — playgrounds, parks, museums, libraries…
+python -m syrenka_ingest trees     # Warsaw tree crowns / Baza Zieleni
 ```
 
-The database must exist and be migrated first — see the root README.
+Manual first, scheduled second. Scheduling arrives much later, once something user-facing depends on the data — an unread pipeline is speculative infrastructure.
 
-## Commands
-
-```bash
-python -m syrenka_ingest stations                      # metro-area stations only
-python -m syrenka_ingest stations --all                # all of Poland
-python -m syrenka_ingest readings                      # sensors + current readings
-python -m syrenka_ingest readings --limit 3 --params PM10 PM2.5
-python -m syrenka_ingest nearest --lat 52.2907 --lon 21.0450 --param PM2.5
-```
-
-`nearest` prints the station, its distance, the value, when it was measured, and the source. That output is the contract for the API endpoint that follows: never the number alone.
-
-Ingestion is run by hand for now. Scheduling comes with EventBridge and Lambda.
+Weather, statistical context and prices follow, each one going through the checklist below.
 
 ## Configuration
 
-| Variable            | Default                                               | Meaning                               |
-| ------------------- | ----------------------------------------------------- | ------------------------------------- |
-| `DATABASE_URL`      | `postgresql://syrenka:syrenka@localhost:5432/syrenka` | Postgres connection                   |
-| `GIOS_MIN_INTERVAL` | `1.0`                                                 | minimum seconds between GIOŚ requests |
-| `LOG_LEVEL`         | `INFO`                                                | logging level                         |
+| Variable       | Default                                               | Meaning             |
+| -------------- | ----------------------------------------------------- | ------------------- |
+| `DATABASE_URL` | `postgresql://syrenka:syrenka@localhost:5432/syrenka` | Postgres connection |
+| `LOG_LEVEL`    | `INFO`                                                | logging level       |
+
+Per-source variables (rate limits, API keys) are documented when that source lands.
 
 ---
 
-## Modules
+## Rules that apply here
 
-| File          | Responsibility                                                                                           |
-| ------------- | -------------------------------------------------------------------------------------------------------- |
-| `gios.py`     | GIOŚ v1 client — rate limiting, retry with backoff, paging, raw capture, tolerant field extraction       |
-| `db.py`       | connection handling, raw payload storage, station/sensor upserts, reading inserts, nearest-station query |
-| `ingest.py`   | payload → schema normalization, metro-area filtering, timestamp handling                                 |
-| `__main__.py` | CLI                                                                                                      |
+- **Raw first.** Every fetch is written to `raw_payloads` before normalization. Re-parsing is cheap; re-fetching a measurement you didn't save is impossible.
+- **Timestamps.** Attach the source's timezone explicitly, store UTC. A silently wrong timezone makes a whole series useless while every row looks correct.
+- **Nulls are data.** A missing value is a real gap, stored as `NULL`, never dropped, never interpolated at ingest.
+- **Upsert on conflict** where a source revises its own data, rather than duplicating.
+- **Skip loudly.** A record with missing fields is logged and skipped; one bad row never fails the run.
+- **Diff, never truncate-and-reload** — OSM especially. Manual curation must survive the next import.
+- **Areas resolve spatially.** `area_id` is assigned by point-in-polygon against `areas`, and stays `NULL` where boundaries don't reach. A record is valid without it.
+- **Estimates are labelled** — interpolation, derived scores, extrapolation — never silently substituted for an observation.
+
+## Adding a data source
+
+1. **Probe before writing.** `curl` two records and read them. Confirm real field names, paging shape, documented rate limit.
+2. **Migration first** — new tables in `migrations/`. Anything located gets `area_id` and geometry; time series get a hypertable.
+3. **Client module** — rate limiting, retry with backoff on 429/5xx, paging; returns payload plus URL and status so the caller can store it verbatim.
+4. **Normalization** — store raw, then parse, skip and log incomplete records, attach timezone explicitly.
+5. **CLI subcommand** — runnable by hand.
+6. **Test against a stored payload**, including a null-value case.
+
+Only then schedule it, with retries, a DLQ and a failure alarm. If nothing user-facing consumes the data yet, stop before scheduling.
 
 ---
 
-## The GIOŚ API
+## Appendix — source research
 
-The legacy `/pjp-api/rest/*` endpoints were **withdrawn on 30 June 2025**. Everything targets `/pjp-api/v1/rest/*`, which returns JSON-LD with Polish-language wrapper keys and paginated list responses.
+Notes gathered ahead of implementation. Not scheduled, not written.
+
+### GIOŚ (air quality)
+
+Air quality is **not** in the current build order. This is kept because the research is done and the finding is time-sensitive.
+
+The legacy `/pjp-api/rest/*` endpoints were **withdrawn on 30 June 2025**. Anything built must target `/pjp-api/v1/rest/*`, which returns JSON-LD with Polish-language wrapper keys and paginated list responses.
 
 | Endpoint                                   | Purpose                                  |
 | ------------------------------------------ | ---------------------------------------- |
@@ -65,37 +79,6 @@ The legacy `/pjp-api/rest/*` endpoints were **withdrawn on 30 June 2025**. Every
 
 OpenAPI docs: `https://dev.api.gios.gov.pl/pjp-api/swagger-ui/`
 
-### Verify before trusting the parser
+Three things to confirm against a live response before writing a parser: real field names (they are Polish, and unconfirmed here), paging shape and maximum page size, and the documented rate limit — 2 requests per minute has been cited, which would mean full metro coverage needs a queue rather than a loop.
 
-Field names in v1 are Polish and were not confirmed against a live response when this was written. `field_of()` matches several candidate spellings per field, diacritic- and case-insensitively, so both v1 and legacy shapes parse — but confirm the real names and tighten:
-
-```bash
-curl -s 'https://api.gios.gov.pl/pjp-api/v1/rest/station/findAll?page=0&size=2' \
-  | python -m json.tool | head -60
-```
-
-Check three things:
-
-1. **Field names** — station id, name, latitude, longitude; sensor id and parameter code.
-2. **Paging** — whether responses carry `totalPages`, and the maximum `size`.
-3. **The documented rate limit.** `GIOS_MIN_INTERVAL` defaults to 1 second as a conservative guess. If the real limit is much lower — 2 requests per minute has been cited — then full metro coverage needs a proper queue rather than a loop.
-
-Nothing is lost by guessing wrong. Every payload is stored verbatim before parsing:
-
-```sql
-SELECT endpoint, fetched_at, jsonb_pretty(payload)
-FROM raw_payloads ORDER BY id DESC LIMIT 1;
-```
-
-Re-parsing is cheap; re-fetching a measurement you didn't save is impossible.
-
----
-
-## Rules that apply here
-
-- **Raw first.** Every fetch is written to `raw_payloads` before normalization.
-- **Timestamps.** GIOŚ returns local Warsaw time with no offset. `Europe/Warsaw` is attached explicitly and UTC is stored. A silently wrong timezone makes a whole series useless while every row looks correct.
-- **Nulls are data.** A missing measurement is stored as `NULL` — a real gap, never dropped, never interpolated at ingest.
-- **Readings upsert on conflict.** GIOŚ data is explicitly subject to later revision, so a re-fetch overwrites rather than duplicating.
-- **Skip loudly.** A record with missing fields is logged and skipped; one bad row never fails the run.
-- **Areas are resolved spatially.** `area_id` is assigned by point-in-polygon against `areas`, and stays `NULL` until boundaries are loaded. A reading is valid without it.
+GIOŚ returns local Warsaw time with no offset, and its data is explicitly unverified and subject to later revision — which is why readings would upsert rather than duplicate, and why the app must say so in the UI.

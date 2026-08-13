@@ -1,8 +1,8 @@
 # Syrenka
 
-A practical, trilingual daily-life companion for Warsaw and its metro area.
+A practical, trilingual companion for exploring Warsaw and its metro area.
 
-It answers _what do I do right now_ — where to buy a specific item, where to eat what you're craving, how prices compare between shops and districts, where to take the kids, and what the air and greenery are like — from real environmental, price and geographic data.
+It answers _what's around me_ and _what should we do today_ — where to take the kids this afternoon, which park, what's growing on that street, how the city is changing — from real geographic, environmental and public data.
 
 **Not** a dashboard of open data. The product is judged on whether it helps someone today.
 
@@ -10,55 +10,43 @@ It answers _what do I do right now_ — where to buy a specific item, where to e
 
 ## Status
 
-Early. GIOŚ air-quality ingestion writes real readings to Postgres; the API and web app come next.
+**Planning complete, implementation not started.** There is no code in this repository yet — no migrations, no services, no application. What exists is the product direction, the settled stack, and a version-by-version build plan.
+
+Next: the first milestone — an interactive map showing real places from public data.
 
 ---
 
-## Quickstart
+## Direction
 
-Requires Docker and Python 3.11+.
+The project is built in versions, each shipping something a person can actually use.
 
-```bash
-# 1. Database — Postgres with PostGIS and TimescaleDB
-docker compose up -d db
-docker compose exec -T db psql -U syrenka -d syrenka < migrations/0001_init.sql
+It starts with **exploration**: a map of parks, playgrounds, museums, libraries and trees across Warsaw and the metro towns, with search, categories, place detail and what's nearby.
 
-# 2. Ingestion
-cd services/analytics
-python -m venv .venv && source .venv/bin/activate
-pip install -e .
+From there it grows into **suggestions** — *what should we do today* — combining weather, distance and how well a place suits the people going, always showing why something was suggested. Then **routes**: a ninety-minute family adventure rather than a single pin.
 
-cp ../../.env.example ../../.env      # then export, or use direnv
-export DATABASE_URL=postgresql://syrenka:syrenka@localhost:5432/syrenka
+The slower-moving layers come later — statistical context on how districts are changing, price data, and personalization. Natural-language interaction comes last, as an interface over the engine rather than a source of truth.
 
-python -m syrenka_ingest stations                          # metro-area stations
-python -m syrenka_ingest readings --limit 3 --params PM10 PM2.5
-python -m syrenka_ingest nearest --lat 52.2907 --lon 21.0450   # Ząbki
-```
-
-Expected output: a station name, its distance, a PM2.5 value, the time it was measured, and its source. That shape is the contract every later layer preserves — never the number alone.
-
-More detail in [`services/analytics/README.md`](services/analytics/README.md).
+Detailed feature and version plans are kept locally, outside this repository.
 
 ---
 
 ## Architecture
 
 ```
-Angular PWA  →  Nest.js API  →  PostgreSQL + PostGIS + TimescaleDB
-                     │              Redis
+Angular PWA  →  Nest.js API  →  PostgreSQL + PostGIS
+                     │              (+ TimescaleDB, Redis — when needed)
                      └──internal──► Python service (no public routes)
                                     Python batch jobs → ingestion
 ```
 
-Nest is the only public API. Python owns ingestion, transformation and computation, and is never exposed directly. TimescaleDB is an extension on the same Postgres as PostGIS, so a time-series query can join against geometry in a single statement — which is exactly what "parks near me with good air right now" needs.
+Nest is the only public API. Python owns ingestion, transformation and computation with pandas and numpy, and is never exposed directly. PostGIS is present from the first migration, because "what's near me" is a spatial query. TimescaleDB is an extension on the same Postgres — so that when time series arrive, a time-series query can join against geometry in a single statement.
 
 ```
 migrations/            numbered SQL migrations
 services/analytics/    Python: ingestion, normalization, analysis
 apps/api/              Nest.js — the public API
 apps/web/              Angular PWA
-docs/                  conventions, roles, skills
+docs/                  conventions, roles
 ```
 
 Working rules, invariants and conventions live in [`AGENTS.md`](AGENTS.md).
@@ -68,9 +56,9 @@ Working rules, invariants and conventions live in [`AGENTS.md`](AGENTS.md).
 ## Principles
 
 - **Practical over encyclopedic** — answer "what do I do right now."
-- **Data-informed** — real environmental, price and transit data, not vibes.
-- **Local and specific** — individual shops, playgrounds and streets, not categories.
-- **Honest about data** — sensor readings have gaps and uncertainty. Measurement time, station distance and source always shown. Never a stale reading presented as current.
+- **Data-informed** — real geographic and environmental data, not vibes.
+- **Local and specific** — individual playgrounds, parks, trees and streets, not categories.
+- **Honest about data** — every value carries when it was observed, its source, and what produced it. Never a stale reading presented as current. Derived scores ship with their weights, or they don't ship.
 - **Respectful of attention** — suggest, never nag; every proactive suggestion controllable.
 - **Works offline where it matters; privacy-respecting.**
 
@@ -78,7 +66,7 @@ Working rules, invariants and conventions live in [`AGENTS.md`](AGENTS.md).
 
 **Languages:** English, Russian and Polish from day one. No hardcoded strings.
 
-**Health boundary:** air quality features relay official guidance thresholds. They do not give personal medical advice.
+**Health boundary:** environmental features relay official guidance thresholds. They do not give personal medical advice.
 
 **Non-goals:** no payments or booking, no social network, no cities beyond the Warsaw metro area.
 
@@ -88,12 +76,13 @@ Working rules, invariants and conventions live in [`AGENTS.md`](AGENTS.md).
 
 Reusing public-sector data carries an attribution obligation. Sources must be indicated clearly and visibly in the app itself, not only here.
 
-| Source                                           | Used for                                       | Terms                                                                                                          |
-| ------------------------------------------------ | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| **GIOŚ** — Główny Inspektorat Ochrony Środowiska | air quality measurements and index             | CC BY 4.0; source attribution required. Data is unverified and subject to later revision — the app states this |
-| **IMGW** / Open-Meteo                            | weather and forecast                           | per provider terms                                                                                             |
-| **OpenStreetMap** contributors                   | shops, amenities, parks, trails                | ODbL — attribution required                                                                                    |
-| **Warsaw open data** (mapa.um.warszawa.pl)       | green space, tree crowns, municipal facilities | per portal terms                                                                                               |
-| **GUS BDL**                                      | demographic and statistical context            | per GUS terms                                                                                                  |
+| Source                                           | Used for                                       | Stage         | Terms                                                                    |
+| ------------------------------------------------ | ---------------------------------------------- | ------------- | ------------------------------------------------------------------------ |
+| **OpenStreetMap** contributors                   | playgrounds, parks, amenities, shops, trails   | first         | ODbL — attribution required                                              |
+| **Warsaw open data** (mapa.um.warszawa.pl)       | green space, tree crowns, municipal facilities | first         | per portal terms                                                         |
+| **PRG / GUS**                                    | area boundaries, TERYT codes                   | first         | per provider terms                                                       |
+| **IMGW** / Open-Meteo                            | weather and forecast                           | with scoring  | per provider terms                                                       |
+| **GUS BDL**                                      | demographic and statistical context            | later         | per GUS terms                                                            |
+| **GIOŚ** — Główny Inspektorat Ochrony Środowiska | air quality measurements and index             | not scheduled | CC BY 4.0; attribution required. Data is unverified and subject to later revision — the app must state this |
 
 Derived indices — neighbourhood comparison, comfort score, place scores — are this project's own analytical models. They are never presented as official statistics, and their weights are published and user-adjustable.
