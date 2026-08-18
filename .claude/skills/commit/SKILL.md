@@ -32,7 +32,9 @@ If it is `main`, stop and branch first, or ask.
 
 Apply §8 of the convention. Tests and their implementation are always separate commits; a refactor never rides along with a behaviour change. If the tree holds more than one logical change, either make several commits in order, or ask which one the maintainer meant.
 
-Attribution splits commits too: work you authored carries `Role:` and `Co-Authored-By:`, and work you did not carries neither. Never sign a commit for changes that were not yours.
+Attribution splits commits too: work you authored *in this session*, under a role the maintainer named for the task, carries `Role:` and `Co-Authored-By:`. Everything else carries neither — including changes that were already sitting in the working tree when the session started, even if an earlier agent session produced them. Don't decide the footer by asking "did an agent write this code at some point"; ask "did I write this, now, under a named role." When that's unclear, default to omitting the footer and say so, rather than asking the maintainer to classify work that isn't yours to attribute. The git author field already records the maintainer's identity regardless of the footer, so leaving it off costs nothing. Never sign a commit for changes that were not yours, and never add `Role:`/`Co-Authored-By:` unless the maintainer's instructions for *this* commit call for it.
+
+This matters most before a push: once a commit reaches a remote, a wrong footer can't be fixed without rewriting shared history (see Amending) — so get it right the first time rather than relying on a later correction.
 
 ### 4. Read what you are about to stage
 
