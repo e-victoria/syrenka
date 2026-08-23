@@ -1,0 +1,29 @@
+[project]
+name = "syrenka-ingest"
+version = "0.1.0"
+description = "Data ingestion, normalization and analysis for Syrenka."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "psycopg>=3.1",
+    "geopandas>=0.14",
+    "pyogrio>=0.7",
+    "shapely>=2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.5",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["syrenka_ingest*"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
