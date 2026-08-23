@@ -2,9 +2,9 @@ services:
   db:
     image: timescale/timescaledb-ha:pg16-all
     environment:
-          POSTGRES_USER: ${POSTGRES_USER:-syrenka}
-          POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-syrenka}
-          POSTGRES_DB: ${POSTGRES_DB:-syrenka}
+      POSTGRES_USER: ${POSTGRES_USER:-syrenka}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-syrenka}
+      POSTGRES_DB: ${POSTGRES_DB:-syrenka}
     ports:
       - "5432:5432"
     volumes:
