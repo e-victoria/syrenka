@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-syrenka}
       POSTGRES_DB: ${POSTGRES_DB:-syrenka}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - db_data:/home/postgres/pgdata
     restart: unless-stopped
@@ -16,16 +16,6 @@ services:
       timeout: 5s
       retries: 10
       start_period: 60s
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 5
-    restart: unless-stopped
 
 volumes:
   db_data:
