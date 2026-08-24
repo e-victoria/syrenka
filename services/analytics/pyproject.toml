@@ -6,9 +6,6 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "psycopg>=3.1",
-    "geopandas>=0.14",
-    "pyogrio>=0.7",
-    "shapely>=2.0",
 ]
 
 [project.optional-dependencies]
