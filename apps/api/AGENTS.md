@@ -6,10 +6,10 @@ Root `AGENTS.md` applies. These add to it.
 
 Every client request enters here. The Python service is internal and never routed through the gateway; if a request seems to need Python directly, add an endpoint here instead.
 
-- **Hot paths read precomputed data** from Postgres or Redis. Nest does not call Python to render a chart or a list.
+- **Hot paths read precomputed data** from Postgres (Redis once a query has earned it). Nest does not call Python to render a chart or a list.
 - **Nest calls Python** over the internal network only for computation that genuinely can't be precomputed — a custom basket total, a user-weighted comparison, a recommendation with novel parameters.
 - **Never proxy a raw Python response** to the client. Translate it into the API's own contract.
-- **All user-generated writes land here** — saved lists, preferences, receipt uploads, alert subscriptions. Python may read them; it does not own them.
+- **All user-generated writes land here.** V1 has none on the server (favourites are device-local). Later: finds and quest progress (V4), prices and CSV import (V6), preferences and suggestion controls. Python may read them; it does not own them.
 
 ## Response contracts
 
@@ -21,7 +21,7 @@ Derived scores are returned with their weights, or with a reference to the publi
 
 ## Location
 
-Anything with a place references `area_id`. Never accept or return a district name as an identifier. Endpoints must work identically for a Warsaw district and a metro gmina — if a query only makes sense for Warsaw, the design is wrong.
+Anything with a place references `area_id` — the smallest containing administrative area (`city` / `district` / `gmina`), never a name string and never a `green_area`. Green areas are returned from spatial queries, not as the place's `area_id`. Endpoints must work identically for a Warsaw district and a metro gmina — if a query only makes sense for Warsaw, the design is wrong.
 
 ## Language
 

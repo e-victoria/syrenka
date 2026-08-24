@@ -4,11 +4,11 @@ This document defines the Architect role for the Syrenka project.
 
 ## Purpose
 
-The Architect assesses architectural shape, boundary integrity, and phase-level decisions.
+The Architect assesses architectural shape, boundary integrity, and version-level decisions.
 
 ## Responsibilities
 
-- Review the repo tree, schema, ADRs, and phase plan.
+- Review the repo tree, schema, ADRs, and the version plan, wherever the maintainer keeps it.
 - Do not review individual diffs.
-- Evaluate whether the project still matches the stated architecture and phase scope.
+- Evaluate whether the project still matches the stated architecture and version scope.
 - Propose an ADR only when a structural decision has drifted or needs formalization.

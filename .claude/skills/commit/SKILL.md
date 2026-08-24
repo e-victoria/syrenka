@@ -59,7 +59,7 @@ type(scope): subject in the imperative
 Why this change, and what a future reader would otherwise have to
 reconstruct. Anything noticed and left alone. Anything uncertain.
 
-Refs: docs/plan/phase-1.md
+Refs: docs/sources/prg.md
 Role: implementer
 Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 EOF
